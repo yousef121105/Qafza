@@ -1,0 +1,30 @@
+# Database connection (used during training/notebooks; the inference
+# service itself does not need a live DB connection to make predictions)
+database:
+  host: "localhost"
+  port: 5432
+  name: "olist_db"
+  user: "olist_user"
+  password: "olist_pass"
+
+# Paths to saved artifacts from the notebooks (Task 2)
+artifacts:
+  model_path: "models/late_delivery_model.joblib"
+  numeric_imputer_path: "models/transformers/numeric_imputer.joblib"
+  numeric_scaler_path: "models/transformers/numeric_scaler.joblib"
+  categorical_encoder_path: "models/transformers/categorical_encoder.joblib"
+  feature_list_path: "data/feature_list.json"
+
+# Model metadata
+model:
+  name: "late_delivery_classifier"
+  version: "1.0.0"
+
+# Prediction threshold chosen in Notebook 6 (fill in your actual value)
+prediction:
+  threshold: 0.389   # TODO: replace with the best_threshold value from Notebook 6
+
+# Logging settings (used starting Step 3)
+logging:
+  level: "INFO"
+  log_file: "logs/app.log"
