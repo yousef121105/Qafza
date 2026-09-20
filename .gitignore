@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 .env
 *.log
+task3/data/
+task3/models/
