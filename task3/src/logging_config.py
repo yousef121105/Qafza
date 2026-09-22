@@ -42,6 +42,14 @@ def _configure_root_logger() -> None:
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
  
+    # Third-party libraries (Great Expectations in particular) log a lot of
+    # internal INFO-level noise using the standard logging module, which
+    # would otherwise flood our own log file. We only want to hear from
+    # them at WARNING level or above -- our own modules still log at
+    # whatever level config.yaml specifies.
+    for noisy_logger_name in ("great_expectations", "urllib3", "matplotlib"):
+        logging.getLogger(noisy_logger_name).setLevel(logging.WARNING)
+ 
     _configured = True
  
  
@@ -63,30 +71,3 @@ if __name__ == "__main__":
     logger.warning("This is a warning message.")
     logger.error("This is an error message.")
     print(f"Check the log file at: {PROJECT_ROOT / CONFIG['logging']['log_file']}")
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
