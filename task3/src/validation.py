@@ -12,8 +12,45 @@ import logging
 import pandas as pd
 import great_expectations as gx
 from great_expectations.core.expectation_suite import ExpectationSuite
+from src.artifacts import ARTIFACTS
+from src.features import build_features, InvalidOrderError
+from src.validation import validate_order   # <-- ضيف هاد الاستيراد
+from src.logging_config import get_logger
 
 logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+
+def predict_order(order: dict) -> dict:
+    start_time = time.perf_counter()
+    logger.info("Prediction request received: %s", order)
+
+    try:
+        # --- Layer 1: Great Expectations data validation (reject strategy) ---
+        validation_result = validate_order(order)
+        if not validation_result["ok"]:
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            logger.warning(
+                "Prediction rejected by data validation (latency=%.1fms): %s",
+                latency_ms, validation_result["error"],
+            )
+            return validation_result  # already {"ok": False, "error": ...}
+
+        # --- Layer 2: build features (structural checks + transform) ---
+        features_df = build_features(order)
+
+        probability = float(ARTIFACTS.model.predict_proba(features_df)[0, 1])
+        is_late = int(probability >= ARTIFACTS.threshold)
+
+        result = {
+            "ok": True,
+            "is_late": is_late,
+            "probability": probability,
+            "threshold": ARTIFACTS.threshold,
+            "model_name": ARTIFACTS.model_name,
+            "model_version": ARTIFACTS.model_version,
+        }
+        # ... باقي الكود متل ما هو (logging النجاح، except blocks...)
 
 VALID_BRAZIL_STATES = [
     "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",

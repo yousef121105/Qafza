@@ -71,3 +71,4 @@ if __name__ == "__main__":
     logger.warning("This is a warning message.")
     logger.error("This is an error message.")
     print(f"Check the log file at: {PROJECT_ROOT / CONFIG['logging']['log_file']}")
+ 
