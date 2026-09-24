@@ -4,9 +4,17 @@ on:
   push:
   pull_request:
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   ci:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -26,10 +34,9 @@ jobs:
 
       - name: Configure DVC credentials
         env:
-          DVC_GDRIVE_CREDENTIALS: ${{ secrets.DVC_GDRIVE_CREDENTIALS }}
+          GDRIVE_CREDENTIALS_DATA: ${{ secrets.DVC_GDRIVE_CREDENTIALS }}
         run: |
-          echo "$DVC_GDRIVE_CREDENTIALS" > "${RUNNER_TEMP}/gdrive-credentials.json"
-          echo "GOOGLE_APPLICATION_CREDENTIALS=${RUNNER_TEMP}/gdrive-credentials.json" >> "$GITHUB_ENV"
+          echo "GDRIVE_CREDENTIALS_DATA=$GDRIVE_CREDENTIALS_DATA" >> "$GITHUB_ENV"
 
       - name: Pull DVC data
         run: dvc pull
@@ -43,5 +50,16 @@ jobs:
       - name: Run tests
         run: pytest -v
 
-      - name: Build Docker image
-        run: docker build -t olist-api .
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
