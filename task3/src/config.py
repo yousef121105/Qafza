@@ -29,4 +29,5 @@ CONFIG = load_config()
 if __name__ == "__main__":
     # Quick manual check: run "python src/config.py" to print the loaded config
     import json
+
     print(json.dumps(CONFIG, indent=2))

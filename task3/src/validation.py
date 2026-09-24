@@ -1,4 +1,4 @@
-﻿"""
+"""
 طبقة تحقق رسمية على سجلات الطلبات الداخلة، مبنية على Great Expectations 1.23.1.
 
 بتغلّف نفس فكرة التحقق اليدوي بـ features.py، بس بشكل رسمي وقابل للتوسعة،
@@ -12,19 +12,40 @@ import logging
 import pandas as pd
 import great_expectations as gx
 from great_expectations.core.expectation_suite import ExpectationSuite
-from src.artifacts import ARTIFACTS
-from src.features import build_features, InvalidOrderError
-from src.logging_config import get_logger
 
 logger = logging.getLogger(__name__)
 
 
-        # ... باقي الكود متل ما هو (logging النجاح، except blocks...)
+# ... باقي الكود متل ما هو (logging النجاح، except blocks...)
 
 VALID_BRAZIL_STATES = [
-    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
-    "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC",
-    "SP", "SE", "TO",
+    "AC",
+    "AL",
+    "AP",
+    "AM",
+    "BA",
+    "CE",
+    "DF",
+    "ES",
+    "GO",
+    "MA",
+    "MT",
+    "MS",
+    "MG",
+    "PA",
+    "PB",
+    "PR",
+    "PE",
+    "PI",
+    "RJ",
+    "RN",
+    "RS",
+    "RO",
+    "RR",
+    "SC",
+    "SP",
+    "SE",
+    "TO",
 ]
 
 REQUIRED_COLUMNS = [
@@ -62,12 +83,21 @@ def _get_suite():
     _suite = _context.suites.add(ExpectationSuite(name="order_validation_suite"))
 
     for col in [
-        "customer_state", "total_price", "total_freight", "n_items",
-        "n_distinct_products", "n_payments", "total_payment_value",
-        "max_installments", "order_purchase_timestamp",
-        "order_estimated_delivery_date", "seller_ids",
+        "customer_state",
+        "total_price",
+        "total_freight",
+        "n_items",
+        "n_distinct_products",
+        "n_payments",
+        "total_payment_value",
+        "max_installments",
+        "order_purchase_timestamp",
+        "order_estimated_delivery_date",
+        "seller_ids",
     ]:
-        _suite.add_expectation(gx.expectations.ExpectColumnValuesToNotBeNull(column=col))
+        _suite.add_expectation(
+            gx.expectations.ExpectColumnValuesToNotBeNull(column=col)
+        )
 
     _suite.add_expectation(
         gx.expectations.ExpectColumnValuesToBeInSet(

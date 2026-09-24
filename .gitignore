@@ -5,3 +5,4 @@ __pycache__/
 *.log
 task3/data/
 task3/models/
+dvc-venv/

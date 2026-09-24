@@ -45,4 +45,3 @@ def test_invalid_data_returns_structured_error():
 
     assert result["ok"] is False
     assert "error" in result
-

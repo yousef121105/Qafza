@@ -1,5 +1,3 @@
-import pytest
-
 from src.validation import validate_order
 
 

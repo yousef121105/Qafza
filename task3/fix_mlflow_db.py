@@ -50,23 +50,13 @@ conn.commit()
 
 print("Experiments:")
 print(
-    conn.execute(
-        "SELECT experiment_id, artifact_location FROM experiments"
-    ).fetchall()
+    conn.execute("SELECT experiment_id, artifact_location FROM experiments").fetchall()
 )
 
 print("\nRuns:")
-print(
-    conn.execute(
-        "SELECT run_uuid, artifact_uri FROM runs"
-    ).fetchall()
-)
+print(conn.execute("SELECT run_uuid, artifact_uri FROM runs").fetchall())
 
 print("\nModel versions:")
-print(
-    conn.execute(
-        "SELECT name, source, run_id FROM model_versions"
-    ).fetchall()
-)
+print(conn.execute("SELECT name, source, run_id FROM model_versions").fetchall())
 
 conn.close()

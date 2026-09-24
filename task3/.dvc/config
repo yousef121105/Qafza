@@ -1,4 +1,8 @@
 [core]
-    remote = local_storage
+    remote = gdrive
 ['remote "local_storage"']
     url = C:\Users\TOKYO TECH\dvc-storage
+['remote "gdrive"']
+    url = gdrive://1kzNEe3OITh6olUqrEwyXCOyhObi6wFhX
+    gdrive_client_id = 977778507931-76fr499h6q3ed8ia21uc8he7ha68o8c5.apps.googleusercontent.com
+    gdrive_use_service_account = true

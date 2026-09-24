@@ -47,7 +47,9 @@ def _parse_best_config(results: dict) -> dict:
     try:
         return ast.literal_eval(raw)
     except (ValueError, SyntaxError):
-        logger.warning("Could not parse best_config %r as a dict; skipping hyperparameters.", raw)
+        logger.warning(
+            "Could not parse best_config %r as a dict; skipping hyperparameters.", raw
+        )
         return {}
 
 
@@ -75,9 +77,13 @@ def main():
     final_metrics = results.get("final_test_metrics", {})
 
     with mlflow.start_run(run_name="register_notebook6_model") as run:
-        log_model_parameters(model_type="RandomForestClassifier", hyperparams=hyperparams)
+        log_model_parameters(
+            model_type="RandomForestClassifier", hyperparams=hyperparams
+        )
         log_model_metrics(final_metrics)
-        log_artifacts_and_model(model, feature_columns, model_name=REGISTERED_MODEL_NAME)
+        log_artifacts_and_model(
+            model, feature_columns, model_name=REGISTERED_MODEL_NAME
+        )
         run_id = run.info.run_id
 
     logger.info("Logged MLflow run %s for model '%s'", run_id, REGISTERED_MODEL_NAME)
@@ -97,7 +103,10 @@ def main():
 
     client.set_registered_model_alias(REGISTERED_MODEL_NAME, MODEL_ALIAS, new_version)
     logger.info(
-        "Set alias '%s' -> %s version %s", MODEL_ALIAS, REGISTERED_MODEL_NAME, new_version
+        "Set alias '%s' -> %s version %s",
+        MODEL_ALIAS,
+        REGISTERED_MODEL_NAME,
+        new_version,
     )
 
     print(f"Run ID: {run_id}")
