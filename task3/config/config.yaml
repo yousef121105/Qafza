@@ -28,3 +28,9 @@ prediction:
 logging:
   level: "INFO"
   log_file: "logs/app.log"
+
+mlflow:
+  tracking_uri: "sqlite:///mlflow.db"
+  experiment_name: "olist_late_delivery"
+  registered_model_name: "late_delivery_classifier"
+  model_alias: "champion"

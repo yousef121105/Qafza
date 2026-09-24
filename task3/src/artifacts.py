@@ -1,27 +1,39 @@
 """
-Load every fitted object produced by the notebooks (Task 2) exactly once,
-and expose them as a single ARTIFACTS object the rest of the service can import.
+Load every fitted object the inference pipeline needs, exactly once, and
+expose them as a single ARTIFACTS object the rest of the service can import.
  
-This module NEVER fits, trains, or refits anything. It only loads what was
-already saved to disk by Notebook 5 (transformers) and Notebook 6 (model).
-That is the core rule of the inference pipeline: fit happens in notebooks,
-loading happens here.
+This module NEVER fits, trains, or refits anything.
+ 
+As of Step 5, the trained model itself is loaded from the MLflow Model
+Registry (by alias, e.g. "champion") rather than from a local .joblib file
+-- this is what lets the service pick up a newly promoted model without
+any code change, and matches the requirement that "the service loads the
+model from the registry ... not from a local notebook folder".
+ 
+The transformers (imputer, scaler, encoder) and the feature list are still
+read from local files under models/ and data/. They were logged to MLflow
+as run artifacts too (see scripts/log_model_to_mlflow.py); loading them
+from the registry's artifact store as well is a natural next step, kept
+local for now to keep this change focused on the model itself.
 """
  
 import json
 from pathlib import Path
  
 import joblib
+import mlflow
 import pandas as pd
  
 from src.config import CONFIG, PROJECT_ROOT
+from src.mlflow_config import configure_mlflow, REGISTERED_MODEL_NAME, MODEL_ALIAS
 from src.logging_config import get_logger
  
 logger = get_logger(__name__)
  
  
 class ArtifactLoadError(RuntimeError):
-    """Raised when a required artifact file is missing or unreadable.
+    """Raised when a required artifact (model, transformer, or file) is
+    missing or unreadable.
  
     This is intentionally a distinct exception type (not a bare
     FileNotFoundError) so calling code -- and later, the API startup
@@ -31,7 +43,7 @@ class ArtifactLoadError(RuntimeError):
  
  
 def _load_file(label: str, path: Path, loader):
-    """Load one artifact file, logging success or a clear failure reason."""
+    """Load one local artifact file, logging success or a clear failure reason."""
     if not path.exists():
         message = f"Missing artifact '{label}': expected file at {path}"
         logger.error(message)
@@ -47,6 +59,32 @@ def _load_file(label: str, path: Path, loader):
     return obj
  
  
+def _load_model_from_registry():
+    """
+    Load the model registered under REGISTERED_MODEL_NAME, at the alias
+    MODEL_ALIAS (e.g. "champion"), from the MLflow Model Registry.
+ 
+    Raises ArtifactLoadError with a clear message if the model or alias
+    doesn't exist yet -- the most common cause is forgetting to run
+    scripts/log_model_to_mlflow.py at least once.
+    """
+    configure_mlflow()
+    model_uri = f"models:/{REGISTERED_MODEL_NAME}@{MODEL_ALIAS}"
+    try:
+        model = mlflow.sklearn.load_model(model_uri)
+    except Exception as e:  # noqa: BLE001
+        message = (
+            f"Failed to load model '{REGISTERED_MODEL_NAME}' at alias "
+            f"'{MODEL_ALIAS}' from the MLflow registry ({model_uri}). "
+            f"Has scripts/log_model_to_mlflow.py been run yet? Original error: {e}"
+        )
+        logger.error(message)
+        raise ArtifactLoadError(message) from e
+ 
+    logger.info("Loaded model from MLflow registry: %s", model_uri)
+    return model
+ 
+ 
 class Artifacts:
     """
     Holds every object the prediction pipeline needs, loaded once at
@@ -58,10 +96,8 @@ class Artifacts:
         artifacts_cfg = CONFIG["artifacts"]
         logger.info("Loading artifacts...")
  
-        # --- The trained model (Notebook 6) ---
-        self.model = _load_file(
-            "model", PROJECT_ROOT / artifacts_cfg["model_path"], joblib.load
-        )
+        # --- The trained model, from the MLflow Model Registry ---
+        self.model = _load_model_from_registry()
  
         # --- The fitted transformers (Notebook 5) ---
         # Each of these was fit on the TRAINING split only, and is loaded
@@ -83,9 +119,6 @@ class Artifacts:
         )
  
         # --- The feature list (Notebook 5) ---
-        # Tells us exactly which columns the model expects, and in what
-        # grouping (numeric / cyclical / binary / categorical). The
-        # feature-building code below must produce exactly these columns.
         self.feature_list = _load_file(
             "feature_list",
             PROJECT_ROOT / artifacts_cfg["feature_list_path"],
@@ -93,9 +126,6 @@ class Artifacts:
         )
  
         # --- Static seller lookup (built once, see scripts/build_seller_lookup.py) ---
-        # Replaces the live database query used in the notebooks: the
-        # inference service must not depend on a database connection to
-        # answer a single prediction request.
         self.seller_lookup = _load_file(
             "seller_lookup",
             PROJECT_ROOT / "data" / "sellers_lookup.parquet",
@@ -104,17 +134,17 @@ class Artifacts:
  
         # --- Prediction settings (Notebook 6) ---
         self.threshold = float(CONFIG["prediction"]["threshold"])
-        self.model_name = CONFIG["model"]["name"]
-        self.model_version = CONFIG["model"]["version"]
+        self.model_name = REGISTERED_MODEL_NAME
+        self.model_version = MODEL_ALIAS
  
         logger.info(
-            "All artifacts loaded successfully (model=%s v%s, threshold=%.3f)",
+            "All artifacts loaded successfully (model=%s @%s, threshold=%.3f)",
             self.model_name, self.model_version, self.threshold,
         )
  
     def __repr__(self) -> str:
         return (
-            f"Artifacts(model={self.model_name} v{self.model_version}, "
+            f"Artifacts(model={self.model_name} @{self.model_version}, "
             f"threshold={self.threshold}, "
             f"n_features={len(self.feature_list['numeric_features']) + len(self.feature_list['cyclical_features']) + len(self.feature_list['binary_features']) + len(self.feature_list['categorical_features_encoded'])}, "
             f"n_sellers_known={len(self.seller_lookup)})"
@@ -123,37 +153,10 @@ class Artifacts:
  
 # Loaded once, when this module is first imported anywhere in the app.
 # Every other module should import ARTIFACTS from here -- never re-load
-# the joblib files themselves.
+# the joblib files, and never re-load the model from the registry, again.
 ARTIFACTS = Artifacts()
  
  
 if __name__ == "__main__":
     # Manual check: "python -m src.artifacts" from the project root (task3/)
     print(ARTIFACTS)
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
