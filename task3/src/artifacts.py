@@ -61,27 +61,53 @@ def _load_file(label: str, path: Path, loader):
  
 def _load_model_from_registry():
     """
-    Load the model registered under REGISTERED_MODEL_NAME, at the alias
-    MODEL_ALIAS (e.g. "champion"), from the MLflow Model Registry.
- 
-    Raises ArtifactLoadError with a clear message if the model or alias
-    doesn't exist yet -- the most common cause is forgetting to run
-    scripts/log_model_to_mlflow.py at least once.
+    Load the model registered under REGISTERED_MODEL_NAME at MODEL_ALIAS.
+
+    MLflow Registry is used to identify the promoted model. The actual model
+    is then loaded from its local artifact source path.
     """
     configure_mlflow()
-    model_uri = f"models:/{REGISTERED_MODEL_NAME}@{MODEL_ALIAS}"
+
     try:
-        model = mlflow.sklearn.load_model(model_uri)
+        client = mlflow.MlflowClient()
+
+        model_version = client.get_model_version_by_alias(
+            REGISTERED_MODEL_NAME,
+            MODEL_ALIAS,
+        )
+
+        source = model_version.source
+
+        # MLflow stores the source as a file URI.
+        # Inside Docker, the artifact store is mounted/copied under /app/mlruns.
+        if source.startswith("file:///app/mlruns/"):
+            model_path = source.replace("file://", "")
+        else:
+            model_path = source
+
+        logger.info(
+            "Loading model '%s' @ '%s' from source: %s",
+            REGISTERED_MODEL_NAME,
+            MODEL_ALIAS,
+            model_path,
+        )
+
+        model = mlflow.sklearn.load_model(model_path)
+
     except Exception as e:  # noqa: BLE001
         message = (
             f"Failed to load model '{REGISTERED_MODEL_NAME}' at alias "
-            f"'{MODEL_ALIAS}' from the MLflow registry ({model_uri}). "
-            f"Has scripts/log_model_to_mlflow.py been run yet? Original error: {e}"
+            f"'{MODEL_ALIAS}' from the MLflow registry. "
+            f"Original error: {e}"
         )
         logger.error(message)
         raise ArtifactLoadError(message) from e
- 
-    logger.info("Loaded model from MLflow registry: %s", model_uri)
+
+    logger.info(
+        "Loaded model from MLflow registry: %s @ %s",
+        REGISTERED_MODEL_NAME,
+        MODEL_ALIAS,
+    )
     return model
  
  

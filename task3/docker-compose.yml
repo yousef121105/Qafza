@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: olist_postgres
+    environment:
+      POSTGRES_DB: olist_db
+      POSTGRES_USER: olist_user
+      POSTGRES_PASSWORD: olist_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - data_olist_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U olist_user -d olist_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: olist_api
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  artifact-storage:
+    image: nginx:alpine
+    container_name: olist_artifact_storage
+    ports:
+      - "8080:80"
+    volumes:
+      - ./mlruns:/usr/share/nginx/html:ro
+
+volumes:
+  data_olist_pgdata:
+    external: true
