@@ -10,3 +10,4 @@ fastapi==0.115.6
 uvicorn==0.34.0
 great_expectations==1.23.1
 mlflow==2.15.1
+prometheus-fastapi-instrumentator==7.1.0

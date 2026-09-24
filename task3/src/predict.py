@@ -15,18 +15,26 @@ Every call goes through two layers of defense before it reaches the model:
 
 Every call is logged (input, output, latency, model version), and bad
 input never raises an unhandled exception out of this module -- it comes
-back as a structured error result instead, so a caller (like a future API
-route) can turn it into a clean 400 response instead of a server crash.
+back as a structured error result instead, so a caller (like a future
+API route) can turn it into a clean 400 response instead of a server crash.
 """
 
 import time
 
+from prometheus_client import Counter
+
 from src.artifacts import ARTIFACTS
-from src.features import build_features, InvalidOrderError
-from src.validation import validate_order
+from src.features import InvalidOrderError, build_features
 from src.logging_config import get_logger
+from src.validation import validate_order
 
 logger = get_logger(__name__)
+
+prediction_counter = Counter(
+    "prediction_total",
+    "Total number of predictions by result",
+    ["is_late"],
+)
 
 
 def predict_order(order: dict) -> dict:
@@ -84,6 +92,9 @@ def predict_order(order: dict) -> dict:
             "model_name": ARTIFACTS.model_name,
             "model_version": ARTIFACTS.model_version,
         }
+
+        # Record prediction distribution for monitoring.
+        prediction_counter.labels(is_late=str(is_late)).inc()
 
         latency_ms = (time.perf_counter() - start_time) * 1000
         logger.info(

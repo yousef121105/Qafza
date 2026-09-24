@@ -1,14 +1,28 @@
 from fastapi import FastAPI
+
 from pydantic import BaseModel
 
 from src.artifacts import ARTIFACTS
+
 from src.predict import predict_order
+
+from prometheus_fastapi_instrumentator import Instrumentator
+
+from prometheus_client import Counter
 
 
 app = FastAPI(
     title="Olist Late Delivery Prediction API",
     version="1.0.0",
     description="API for predicting whether an Olist order will be delivered late.",
+)
+
+Instrumentator().instrument(app).expose(app)
+
+
+prediction_errors_total = Counter(
+    "prediction_errors_total",
+    "Total number of prediction errors",
 )
 
 
@@ -52,4 +66,9 @@ def model_info():
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(order: OrderRequest):
-    return predict_order(order.model_dump())
+    result = predict_order(order.model_dump())
+
+    if not result["ok"]:
+        prediction_errors_total.inc()
+
+    return result
